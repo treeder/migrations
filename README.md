@@ -2,6 +2,8 @@
 
 Simple JS database/SQL migration library. 
 
+This works with Cloudflare D1 out of the box. 
+
 ### Usage
 
 ```sh
