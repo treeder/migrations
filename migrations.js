@@ -11,7 +11,8 @@ let runCount = 0
 
 export class Migrations {
 
-    constructor() {
+    constructor(db) {
+        this.db = db
         this.migrations = [
             `CREATE TABLE IF NOT EXISTS migrations (id integer PRIMARY KEY, createdAt text)`, // the default migration table
         ]
@@ -21,7 +22,7 @@ export class Migrations {
         this.migrations.push(sql)
     }
 
-    async run(db) {
+    async run() {
         if (runCount > 0) return
         runCount++
 
@@ -29,7 +30,7 @@ export class Migrations {
         // check current version
         let lastMigration = -1
         try {
-            let r = await db.prepare("SELECT * FROM migrations order by id desc").first()
+            let r = await this.db.prepare("SELECT * FROM migrations order by id desc").first()
             console.log("LAST MIGRATION:", r)
             // return
             lastMigration = r.id
@@ -43,7 +44,7 @@ export class Migrations {
         }
 
         let i = 0
-        for (const m of migrations()) {
+        for (const m of this.migrations) {
             console.log("MIGRATION:", i, lastMigration)
             if (lastMigration >= i) {
                 i++
@@ -63,5 +64,5 @@ export class Migrations {
 }
 
 // default:
-var migrations = new Migrations()
-export { migrations }
+// var migrations = new Migrations()
+// export { migrations }
