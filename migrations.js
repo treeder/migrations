@@ -27,6 +27,7 @@ export class Migrations {
         runCount++
 
         console.log("RUNNING MIGRATIONS")
+        let db = this.db
         // check current version
         let lastMigration = -1
         try {

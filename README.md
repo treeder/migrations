@@ -11,14 +11,14 @@ bun install treeder/migrations
 ```
 
 ```js
-import {migrations} from 'migrations'
+import {Migrations} from 'migrations'
 
+let migrations = new Migrations() 
 // add all your migrations
 // WARNING: DO NOT REMOVE A MIGRATION, EVER! JUST LEAVE THEM AND ADD TO THE LIST
 migrations.add(`CREATE TABLE IF NOT EXISTS mytable (id string PRIMARY KEY, createdAt text)`)
 migrations.add(`CREATE TABLE IF NOT EXISTS mytable2 (id string PRIMARY KEY, createdAt text)`)
 
-// Then run it.
-// You can run this any number of times, it will only run each migration once.
+// Then run it. You can run this any number of times, it will only run each migration once.
 await migrations.run()
 ```
