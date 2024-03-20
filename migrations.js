@@ -1,9 +1,9 @@
 
 /**
- * Could turn this into a lib.
+ * 
  * 
  * let m = new Migrations()
- * m.add(`SQL STATEMENTS`)
+ * m.add(`SQL STATEMENT`)
  * m.run()
  * 💥
  */
@@ -31,7 +31,7 @@ export class Migrations {
         // check current version
         let lastMigration = -1
         try {
-            let r = await this.db.prepare("SELECT * FROM migrations order by id desc").first()
+            let r = await db.prepare("SELECT * FROM migrations order by id desc").first()
             console.log("LAST MIGRATION:", r)
             // return
             lastMigration = r.id
@@ -53,8 +53,8 @@ export class Migrations {
             }
             console.log("RUNNING MIGRATION: ", i, m)
             try {
-                await db.exec(m)
-                await db.exec(`INSERT INTO migrations (id, createdAt) VALUES (${i}, datetime('now'))`)
+                await db.prepare(m).run()
+                await db.prepare(`INSERT INTO migrations (id, createdAt) VALUES (${i}, datetime('now'))`).run()
             } catch (e) {
                 console.error("ERROR:", e)
                 throw e
@@ -63,7 +63,3 @@ export class Migrations {
         }
     }
 }
-
-// default:
-// var migrations = new Migrations()
-// export { migrations }
