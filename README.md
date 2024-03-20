@@ -16,7 +16,7 @@ bun install treeder/migrations
 import {Migrations} from 'migrations'
 
 let migrations = new Migrations(db) 
-// add all your migrations
+// add all your migrations, one statement per add()
 // WARNING: DO NOT REMOVE A MIGRATION, EVER! JUST LEAVE THEM AND ADD TO THE LIST
 migrations.add(`CREATE TABLE IF NOT EXISTS mytable (id string PRIMARY KEY, createdAt text)`)
 migrations.add(`CREATE TABLE IF NOT EXISTS mytable2 (id string PRIMARY KEY, createdAt text)`)
