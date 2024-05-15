@@ -32,7 +32,7 @@ export class Migrations {
         let lastMigration = -1
         try {
             let r = await db.prepare("SELECT * FROM migrations order by id desc").first()
-            console.log("LAST MIGRATION:", r)
+            // console.log("LAST MIGRATION:", r)
             // return
             lastMigration = r.id
         } catch (e) {
@@ -46,15 +46,16 @@ export class Migrations {
 
         let i = 0
         for (const m of this.migrations) {
-            console.log("MIGRATION:", i, lastMigration)
+            // console.log("MIGRATION:", i, lastMigration)
             if (lastMigration >= i) {
                 i++
                 continue
             }
             console.log("RUNNING MIGRATION: ", i, m)
             try {
-                await db.prepare(m).run()
+                // add row first so we don't run something twice at the same time
                 await db.prepare(`INSERT INTO migrations (id, createdAt) VALUES (${i}, datetime('now'))`).run()
+                await db.prepare(m).run()
             } catch (e) {
                 console.error("ERROR:", e)
                 throw e
