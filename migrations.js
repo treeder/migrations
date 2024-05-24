@@ -53,9 +53,9 @@ export class Migrations {
             }
             console.log("RUNNING MIGRATION: ", i, m)
             try {
-                // add row first so we don't run something twice at the same time
-                await db.prepare(`INSERT INTO migrations (id, createdAt) VALUES (${i}, datetime('now'))`).run()
+                 // TODO: prevent this from running twice, perhaps insert row with status = "pending", they update status after running
                 await db.prepare(m).run()
+                await db.prepare(`INSERT INTO migrations (id, createdAt) VALUES (${i}, datetime('now'))`).run()
             } catch (e) {
                 console.error("ERROR:", e)
                 throw e
