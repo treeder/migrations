@@ -25,8 +25,6 @@ export class Migrations {
     async run() {
         if (runCount > 0) return
         runCount++
-
-        console.log("RUNNING MIGRATIONS")
         let db = this.db
         // check current version
         let lastMigration = -1
