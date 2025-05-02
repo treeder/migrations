@@ -1,6 +1,6 @@
 # migrations
 
-Simple SQLite migration library library. 
+Simple SQLite migration library. 
 
 This works with Cloudflare D1 out of the box. 
 
