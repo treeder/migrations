@@ -54,7 +54,7 @@ export class Product {
 }
 
 // Then use this to create your migrations:
-let migrations = new Migrations2(env.D1, [
+let migrations = new ClassMigrations(env.D1, [
   Product,
 ])
 await migrations.run()
