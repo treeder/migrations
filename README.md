@@ -15,7 +15,7 @@ bun install treeder/migrations
 ### Using raw statements
 
 ```js
-import { Migrations } from 'migrations'
+import { Migrations } from "migrations"
 
 let migrations = new Migrations(db) 
 // add all your migrations, one statement per add()
@@ -32,7 +32,7 @@ await migrations.run()
 Define a class with properties. Properties are just like Lit component properties so they have a similar feel.
 
 ```js
-import { ClassMigrations } from 'migrations'
+import { ClassMigrations } from "migrations"
 
 // First define your models as classes:
 export class Product {
