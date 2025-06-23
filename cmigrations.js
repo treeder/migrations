@@ -76,6 +76,8 @@ export class ClassMigrations {
         return "TEXT"
       case Object:
         return "TEXT"
+      case JSON: // Same as Object
+        return "TEXT"
       case Array:
         return "TEXT"
       default:
