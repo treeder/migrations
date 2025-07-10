@@ -20,15 +20,15 @@ export class ClassMigrations {
     runCount++
 
     let r = await this.db.prepare("PRAGMA table_list").run()
-    console.log(r)
+    // console.log(r)
     let tables = r.results
 
     for (const clz of this.classes) {
-      console.log("CLASS:", clz)
+      // console.log("CLASS:", clz)
       let tableName = toTableName(clz.name)
       let table = tables.find(t => t.name === tableName)
       if (!table) {
-        console.log("CREATE TABLE")
+        console.log(`CREATING TABLE ${tableName}`)
         let stmt = `CREATE TABLE ${tableName} (`
         for (const prop in clz.properties) {
           let p = clz.properties[prop]
@@ -42,9 +42,8 @@ export class ClassMigrations {
         await this.db.prepare(stmt).run()
       } else {
         // check if any properties changed and do alter tables if so
-        console.log("ALTER TABLE")
         let r = await this.db.prepare(`PRAGMA table_info("${tableName}")`).run()
-        console.log(r)
+        // console.log(r)
         let columns = r.results
         for (const prop in clz.properties) {
           if (columns.find(c => c.name === prop)) {
@@ -75,8 +74,6 @@ export class ClassMigrations {
       case BigInt:
         return "TEXT"
       case Object:
-        return "TEXT"
-      case JSON: // Same as Object
         return "TEXT"
       case Array:
         return "TEXT"
