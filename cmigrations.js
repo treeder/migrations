@@ -25,7 +25,7 @@ export class ClassMigrations {
 
     for (const clz of this.classes) {
       // console.log("CLASS:", clz)
-      let tableName = toTableName(clz.name)
+      let tableName = clz.table || toTableName(clz.name)
       let table = tables.find(t => t.name === tableName)
       if (!table) {
         console.log(`CREATING TABLE ${tableName}`)
