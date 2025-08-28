@@ -1,21 +1,23 @@
 # migrations
 
-Simple SQLite migration library. 
+Simple SQLite migration library.
 
-This works with Cloudflare D1 out of the box. 
+This works with Cloudflare D1 out of the box.
 
-### Usage
+This will perform the migration and since it's in git, it will also keep a record of all db changes.
+
+## Usage
 
 ```sh
 npm install treeder/migrations
 ```
 
-### Using classes
+## Using classes
 
-Define a class with properties. Properties are just like Lit component properties so they have a similar feel. 
+Define a class with properties. Properties are just like Lit component properties so they have a similar feel.
 
 ```js
-import { ClassMigrations } from "migrations"
+import { ClassMigrations } from 'migrations'
 
 // First define your models as classes:
 export class Product {
@@ -34,28 +36,52 @@ export class Product {
       type: Number,
     },
     data: {
-      type: Object, 
-    }
+      type: Object,
+    },
   }
 }
 
 // Then use this to create your migrations:
-let migrations = new ClassMigrations(env.D1, [
-  Product,
-])
+let migrations = new ClassMigrations(env.D1, [Product])
 await migrations.run()
 ```
 
 If you add new properties, the database will automatically update on the next run.
 
-Use `type: Object` for JSON fields.  
+Use `type: Object` for JSON fields.
 
-### Using raw statements
+### Indexes
+
+Add an index property to the field.
+
+```js
+{
+  userId: {
+    type: String,
+    index: true,
+  },
+}
+```
+
+To make it a unique index:
+
+```js
+{
+  userId: {
+    type: String,
+    index: {
+      unique: true,
+    },
+  },
+}
+```
+
+## Using raw statements
 
 ```js
 import { Migrations } from 'migrations'
 
-let migrations = new Migrations(db) 
+let migrations = new Migrations(db)
 // add all your migrations, one statement per add()
 // WARNING: DO NOT REMOVE A MIGRATION, EVER! JUST LEAVE THEM AND ADD TO THE LIST
 migrations.add(`CREATE TABLE IF NOT EXISTS mytable (id string PRIMARY KEY, createdAt text)`)
@@ -64,4 +90,3 @@ migrations.add(`CREATE TABLE IF NOT EXISTS mytable2 (id string PRIMARY KEY, crea
 // Then run it. You can run this any number of times, it will only run each migration once.
 await migrations.run()
 ```
-

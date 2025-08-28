@@ -1,2 +1,2 @@
 run:
-	cd example && npx wrangler dev ./index.js
+	npm start

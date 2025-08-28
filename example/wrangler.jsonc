@@ -6,10 +6,4 @@
       "database_id": "d1"
     }
   ],
-  "r2_buckets": [
-    {
-      "binding": "R2",
-      "bucket_name": "r2"
-    }
-  ]
 }
