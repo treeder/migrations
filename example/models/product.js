@@ -12,7 +12,7 @@ export class Product {
     },
     categoryId: {
       type: String,
-      index: { unique: true },
+      // index: { unique: true },
     },
     name: {
       type: String,

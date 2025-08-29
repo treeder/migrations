@@ -2,13 +2,11 @@
  * The object oriented version
  */
 export class ClassMigrations {
-  // Putting this as static so this doesn't run multiple times by accident
-  static finished = null
 
   constructor(db, classes = []) {
     this.db = db
     this.classes = classes
-    // this.finished = null
+    this.finished = null
   }
 
   add(clz) {
@@ -16,12 +14,13 @@ export class ClassMigrations {
   }
 
   async run() {
-    if (ClassMigrations.finished) return ClassMigrations.finished
-    ClassMigrations.finished = this.run2()
+    // this will ensure it only runs once per instance
+    if (this.finished) return this.finished
+    this.finished = this.run2()
   }
 
   async run2() {
-    console.log('run')
+    console.log('Running migrations...')
     let r = await this.db.prepare('PRAGMA table_list').run()
     // console.log(r)
     let tables = r.results
@@ -42,36 +41,46 @@ export class ClassMigrations {
   async createTable(tableName, clz) {
     console.log(`CREATING TABLE ${tableName}`)
     let stmt = `CREATE TABLE ${tableName} (`
-    for (const prop in clz.properties) {
-      let p = clz.properties[prop]
-      stmt += `${prop} ${this.toSQLiteType(p.type)}`
-      if (p.primaryKey) stmt += ' PRIMARY KEY'
+    for (const propName in clz.properties) {
+      let prop = clz.properties[propName]
+      stmt += `${propName} ${this.toSQLiteType(prop.type)}`
+      if (prop.primaryKey) stmt += ' PRIMARY KEY'
       stmt += ','
     }
     stmt = stmt.slice(0, -1)
     stmt += ')'
     console.log(stmt)
     await this.db.prepare(stmt).run()
+    await this.checkForIndexes(tableName, clz)
   }
 
   async checkForChanges(tableName, clz) {
     // check if any properties changed and do alter tables if so
     let r = await this.db.prepare(`PRAGMA table_info("${tableName}")`).run()
-    console.log('TABLE:', r)
+    // console.log('TABLE INFO:', r)
     let columns = r.results
     for (const propName in clz.properties) {
       let prop = clz.properties[propName]
       console.log('PROP:', propName, prop)
       let col = columns.find((c) => c.name === propName)
-      if (col) {
+      if (!col) {
+        let stmt = `ALTER TABLE ${tableName} ADD COLUMN `
+        stmt += `${propName} ${this.toSQLiteType(prop.type)}`
+        if (prop.primaryKey) stmt += ' PRIMARY KEY'
+        console.log(stmt)
+        await this.db.prepare(stmt).run()
+      } else {
         await this.checkForIndex(tableName, propName, prop, col)
-        continue
       }
-      let stmt = `ALTER TABLE ${tableName} ADD COLUMN `
-      stmt += `${propName} ${this.toSQLiteType(prop.type)}`
-      if (prop.primaryKey) stmt += ' PRIMARY KEY'
-      console.log(stmt)
-      await this.db.prepare(stmt).run()
+    }
+  }
+
+  async checkForIndexes(tableName, clz) {
+    for (const propName in clz.properties) {
+      let prop = clz.properties[propName]
+      if (prop.index) {
+        await this.checkForIndex(tableName, propName, prop)
+      }
     }
   }
 
@@ -79,23 +88,20 @@ export class ClassMigrations {
     if (prop.index) {
       // check if there's an index
       console.log('check indexes')
-      try {
-        let stmt = `PRAGMA index_list("${tableName}")`
-        console.log(stmt)
-        let idx = await this.db.prepare(stmt).run()
-        console.log('INDEXES:', idx)
-      } catch (e) {
-        console.log(e)
+      let indexName = `${tableName}_${propName}_idx`
+      let stmt = `PRAGMA index_list("${tableName}")`
+      console.log(stmt)
+      let idx = await this.db.prepare(stmt).run()
+      console.log('INDEXES:', idx)
+      let existingIndex = idx.results.find((i) => i.name === indexName)
+      if (existingIndex) {
+        console.log('INDEX EXISTS:', existingIndex)
+        return
       }
-      console.log('AAAAAA')
-      // await this.db
-      //   .prepare(
-      //     `CREATE ${
-      //       prop.index.unique ? 'UNIQUE' : ''
-      //     } INDEX ${tableName}_${propName}_idx ON ${tableName} (${propName})`
-      //   )
-      //   .run()
-      console.log('INDEX CREATED')
+      stmt = `CREATE${prop.index.unique ? ' UNIQUE' : ''} INDEX IF NOT EXISTS ${indexName} ON ${tableName} (${propName})`
+      console.log("index does not exist, creating it", stmt)
+      let dr = await this.db.prepare(stmt).run()
+      console.log('INDEX CREATED', dr)
     } else {
       // remove index
       // todo: do we want to do this? Or make it more explicit in the model?

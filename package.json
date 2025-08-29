@@ -4,6 +4,12 @@
   "version": "1.0.0",
   "main": "migrations.js",
   "scripts": {
-    "start": "cd example && npx wrangler dev ./index.js"
+    "start": "cd example && npx wrangler dev ./index.js",
+    "test": "node test/test.js",
+    "ci": "start-server-and-test start 8787 test"
+  },
+  "devDependencies": {
+    "api": "github:treeder/api",
+    "testkit": "github:treeder/testkit"
   }
 }

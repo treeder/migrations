@@ -36,19 +36,29 @@ export class Product {
       type: Number,
     },
     data: {
-      type: Object,
+      type: Object, // Use Object for JSON fields.
     },
   }
 }
+```
 
+Then run the migrations:
+
+```js
 // Then use this to create your migrations:
 let migrations = new ClassMigrations(env.D1, [Product])
 await migrations.run()
 ```
 
-If you add new properties, the database will automatically update on the next run.
+If you add new properties, the database will automatically update on the next time you run it.
 
-Use `type: Object` for JSON fields.
+### Ensure you only run it once on startup
+
+Use this once function:
+
+```
+
+```
 
 ### Indexes
 
