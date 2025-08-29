@@ -2,7 +2,7 @@
 # see: https://firebase.google.com/docs/studio/customize-workspace
 { pkgs, ... }: {
   # Which nixpkgs channel to use.
-  channel = "stable-24.11"; # or "unstable"
+  channel = "stable-25.05"; # or "unstable"
 
   # Use https://search.nixos.org/packages to find packages
   packages = [
@@ -10,11 +10,12 @@
   ];
 
   # Sets environment variables in the workspace
-  env = {};
+  env = { };
   idx = {
     # Search for the extensions you want on https://open-vsx.org/ and use "publisher.id"
     extensions = [
-      # "vscodevim.vim"
+      "qwtel.sqlite-viewer"
+      "esbenp.prettier-vscode"
     ];
 
     # Enable previews

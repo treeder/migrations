@@ -10,6 +10,10 @@ export class Product {
     updatedAt: {
       type: Date,
     },
+    categoryId: {
+      type: String,
+      // index: { unique: true },
+    },
     name: {
       type: String,
     },
@@ -24,6 +28,9 @@ export class Product {
     },
     quantity: {
       type: Number,
+    },
+    data: {
+      type: Object,
     },
   }
 }
