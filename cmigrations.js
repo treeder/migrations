@@ -102,6 +102,7 @@ export class ClassMigrations {
       console.log("index does not exist, creating it", stmt)
       let dr = await this.db.prepare(stmt).run()
       console.log('INDEX CREATED', dr)
+      await this.db.prepare("PRAGMA wal_checkpoint(FULL)").run()
     } else {
       // remove index
       // todo: do we want to do this? Or make it more explicit in the model?
