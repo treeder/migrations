@@ -17,6 +17,7 @@ export class ClassMigrations {
     // this will ensure it only runs once per instance
     if (this.finished) return this.finished
     this.finished = this.run2()
+    return await this.finished
   }
 
   async run2() {
