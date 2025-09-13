@@ -62,7 +62,7 @@ export class ClassMigrations {
     let columns = r.results
     for (const propName in clz.properties) {
       let prop = clz.properties[propName]
-      console.log('PROP:', propName, prop)
+      // console.log('PROP:', propName, prop)
       let col = columns.find((c) => c.name === propName)
       if (!col) {
         let stmt = `ALTER TABLE ${tableName} ADD COLUMN `
@@ -88,15 +88,15 @@ export class ClassMigrations {
   async checkForIndex(tableName, propName, prop, col) {
     if (prop.index) {
       // check if there's an index
-      console.log('check indexes')
+      // console.log('check indexes')
       let indexName = `${tableName}_${propName}_idx`
       let stmt = `PRAGMA index_list("${tableName}")`
-      console.log(stmt)
+      // console.log(stmt)
       let idx = await this.db.prepare(stmt).run()
-      console.log('INDEXES:', idx)
+      // console.log('INDEXES:', idx)
       let existingIndex = idx.results.find((i) => i.name === indexName)
       if (existingIndex) {
-        console.log('INDEX EXISTS:', existingIndex)
+        // console.log('INDEX EXISTS:', existingIndex)
         return
       }
       stmt = `CREATE${prop.index.unique ? ' UNIQUE' : ''} INDEX IF NOT EXISTS ${indexName} ON ${tableName} (${propName})`
