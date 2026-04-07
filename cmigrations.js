@@ -94,8 +94,7 @@ export class ClassMigrations {
       if (typeof propName == 'string' || propName instanceof String) {
         propName = [propName]
       }
-      propStr = propName.join('_')
-      let indexName = `${tableName}_${propStr}_idx`
+      let indexName = `${tableName}_${propName.join('_')}_idx`
       let stmt = `PRAGMA index_list("${tableName}")`
       let idx = await this.db.prepare(stmt).run()
       let existingIndex = idx.results.find((i) => i.name === indexName)
