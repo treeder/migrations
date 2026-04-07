@@ -86,6 +86,27 @@ To make it a unique index:
 }
 ```
 
+#### Composite / Compound Indexes
+
+You can also define composite indexes (or multi-column indexes) on your model by adding an `indexes` static property array. This is useful when you want to create an index across multiple fields.
+
+```js
+export class Product {
+  static properties = {
+    tenantId: { type: String },
+    categoryId: { type: String },
+    name: { type: String },
+  }
+
+  static indexes = [
+    // Array syntax for standard composite index
+    ['tenantId', 'categoryId'],
+    // Object syntax if you need it to be unique
+    { columns: ['tenantId', 'name'], unique: true }
+  ]
+}
+```
+
 ## Using raw statements
 
 ```js

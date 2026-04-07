@@ -83,6 +83,35 @@ export class ClassMigrations {
         await this.checkForIndex(tableName, propName, prop)
       }
     }
+    if (clz.indexes) {
+      for (const indexDef of clz.indexes) {
+        await this.checkCompositeIndex(tableName, indexDef)
+      }
+    }
+  }
+
+  async checkCompositeIndex(tableName, indexDef) {
+    let columns = []
+    let unique = false
+    if (Array.isArray(indexDef)) {
+      columns = indexDef
+    } else {
+      columns = indexDef.columns
+      unique = indexDef.unique
+    }
+    if (!columns || columns.length === 0) return
+
+    let indexName = `${tableName}_${columns.join('_')}_idx`
+    let stmt = `PRAGMA index_list("${tableName}")`
+    let idx = await this.db.prepare(stmt).run()
+    let existingIndex = idx.results.find((i) => i.name === indexName)
+    if (existingIndex) {
+      return
+    }
+    stmt = `CREATE${unique ? ' UNIQUE' : ''} INDEX IF NOT EXISTS ${indexName} ON ${tableName} (${columns.join(', ')})`
+    console.log("composite index does not exist, creating it", stmt)
+    let dr = await this.db.prepare(stmt).run()
+    console.log('COMPOSITE INDEX CREATED', dr)
   }
 
   async checkForIndex(tableName, propName, prop, col) {
