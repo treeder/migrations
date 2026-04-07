@@ -2,7 +2,6 @@
  * The object oriented version
  */
 export class ClassMigrations {
-
   constructor(db, classes = []) {
     this.db = db
     this.classes = classes
@@ -83,31 +82,30 @@ export class ClassMigrations {
         await this.checkForIndex(tableName, propName, prop)
       }
     }
+    if (clz.indices) {
+      for (const index of clz.indices) {
+        await this.checkForIndex(tableName, index.fields, { index: { unique: index.unique } })
+      }
+    }
   }
 
   async checkForIndex(tableName, propName, prop, col) {
     if (prop.index) {
-      // check if there's an index
-      // console.log('check indexes')
-      let indexName = `${tableName}_${propName}_idx`
+      if (typeof propName == 'string' || propName instanceof String) {
+        propName = [propName]
+      }
+      propStr = propName.join('_')
+      let indexName = `${tableName}_${propStr}_idx`
       let stmt = `PRAGMA index_list("${tableName}")`
-      // console.log(stmt)
       let idx = await this.db.prepare(stmt).run()
-      // console.log('INDEXES:', idx)
       let existingIndex = idx.results.find((i) => i.name === indexName)
       if (existingIndex) {
-        // console.log('INDEX EXISTS:', existingIndex)
         return
       }
-      stmt = `CREATE${prop.index.unique ? ' UNIQUE' : ''} INDEX IF NOT EXISTS ${indexName} ON ${tableName} (${propName})`
-      console.log("index does not exist, creating it", stmt)
+      stmt = `CREATE${prop.index.unique ? ' UNIQUE' : ''} INDEX IF NOT EXISTS ${indexName} ON ${tableName} (${propName.join(', ')})`
+      console.log('index does not exist, creating it', stmt)
       let dr = await this.db.prepare(stmt).run()
-      console.log('INDEX CREATED', dr)
-    } else {
-      // remove index
-      // todo: do we want to do this? Or make it more explicit in the model?
-      //       like: index: {drop: true}
-      // await this.db.prepare(`DROP INDEX ${tableName}_${propName}_idx`).run()
+      console.log(`index ${indexName} created`, dr)
     }
   }
 
