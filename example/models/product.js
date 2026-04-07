@@ -33,4 +33,9 @@ export class Product {
       type: Object,
     },
   }
+
+  static indexes = [
+    ['categoryId', 'name'],
+    { columns: ['name', 'value'], unique: true }
+  ]
 }
