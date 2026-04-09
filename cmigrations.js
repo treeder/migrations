@@ -74,6 +74,11 @@ export class ClassMigrations {
         await this.checkForIndex(tableName, propName, prop, col)
       }
     }
+    if (clz.indexes) {
+      for (const indexDef of clz.indexes) {
+        await this.checkCompositeIndex(tableName, indexDef)
+      }
+    }
   }
 
   async checkForIndexes(tableName, clz) {
