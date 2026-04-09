@@ -16,6 +16,9 @@ export default {
       if (searchParams.get('addIndex')) {
         Product.properties.categoryId.index = true
       }
+      if (searchParams.get('addCompositeIndex')) {
+        Product.indexes.push(['categoryId', 'value'])
+      }
       await init({ env })
 
       let r = await env.D1.prepare('PRAGMA table_list').run()
