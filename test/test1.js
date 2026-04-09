@@ -46,4 +46,19 @@ export async function test1(c) {
   console.log('r4:', r)
   assert(r.indexes.length == 4) // autoindex, 2 compound, 1 regular
 
+  // composite indexes on existing tables (checkForChanges) — add a new compound index
+  r = await c.api.fetch(`/?addCompositeIndex=true`, {
+    method: 'POST',
+    body: {},
+  })
+  console.log('r5:', r)
+  await new Promise((resolve) => setTimeout(resolve, 10000))
+
+  r = await c.api.fetch(`/`, {
+    method: 'POST',
+    body: {},
+  })
+  console.log('r6:', r)
+  assert(r.indexes.length == 5) // autoindex, 3 compound, 1 regular
+  assert(r.indexes.some((i) => i.name === 'products_categoryId_value_idx'))
 }
