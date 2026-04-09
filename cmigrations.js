@@ -70,15 +70,9 @@ export class ClassMigrations {
         if (prop.primaryKey) stmt += ' PRIMARY KEY'
         console.log(stmt)
         await this.db.prepare(stmt).run()
-      } else {
-        await this.checkForIndex(tableName, propName, prop, col)
       }
     }
-    if (clz.indexes) {
-      for (const indexDef of clz.indexes) {
-        await this.checkCompositeIndex(tableName, indexDef)
-      }
-    }
+    await this.checkForIndexes(tableName, clz)
   }
 
   async checkForIndexes(tableName, clz) {
