@@ -100,7 +100,16 @@ export class ClassMigrations {
     }
     if (!columns || columns.length === 0) return
 
-    let cleanCols = columns.map(col => col.trim().replace(/\s+/g, '_'))
+    let cleanCols = columns.map(col => {
+      const parts = col.trim().split(/\s+/)
+      if (parts.length > 1) {
+        const last = parts[parts.length - 1].toUpperCase()
+        if (last === 'ASC' || last === 'DESC') {
+          return [...parts.slice(0, -1), last].join('_')
+        }
+      }
+      return col.trim().replace(/\s+/g, '_')
+    })
     let indexName = `${tableName}_${cleanCols.join('_')}_idx`
     let stmt = `PRAGMA index_list("${tableName}")`
     let idx = await this.db.prepare(stmt).run()
