@@ -22,6 +22,7 @@ export class Product {
     },
     price: {
       type: Number,
+      index: 'DESC',
     },
     description: {
       type: String,
@@ -36,6 +37,7 @@ export class Product {
 
   static indexes = [
     ['categoryId', 'name'],
-    { columns: ['name', 'value'], unique: true }
+    { columns: ['name', 'value'], unique: true },
+    ['quantity DESC', 'updatedAt ASC']
   ]
 }
