@@ -128,7 +128,7 @@ export class ClassMigrations {
       // check if there's an index
       // console.log('check indexes')
       let sort = ''
-      if (typeof prop.index === 'object' && prop.index.sort) {
+      if (typeof prop.index === 'object' && prop.index.sort && ['asc', 'desc'].includes(prop.index.sort.toLowerCase())) {
         sort = prop.index.sort.toUpperCase()
       } else if (typeof prop.index === 'string' && ['asc', 'desc'].includes(prop.index.toLowerCase())) {
         sort = prop.index.toUpperCase()
