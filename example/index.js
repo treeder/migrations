@@ -11,6 +11,7 @@ export default {
       if (searchParams.get('clear')) {
         console.log("clear")
         await env.D1.prepare(`DROP TABLE IF EXISTS ${tableName}`).run()
+        await env.D1.prepare(`DROP TABLE IF EXISTS _migration_meta`).run()
         return Response.json({ message: 'Table dropped' })
       }
       if (searchParams.get('addIndex')) {

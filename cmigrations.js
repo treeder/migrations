@@ -22,6 +22,27 @@ export class ClassMigrations {
 
   async run2() {
     console.log('Running migrations...')
+
+    let schemaHash
+    try {
+      schemaHash = await this.computeSchemaHash()
+    } catch (hashErr) {
+      console.error(`[migrations] Failed to compute schema hash: ${hashErr.message}`)
+    }
+
+    if (schemaHash) {
+      try {
+        const storedHash = await this.db.prepare(`SELECT value FROM _migration_meta WHERE key = 'schema_hash'`).first('value')
+        if (storedHash === schemaHash) {
+          console.log(`[migrations] Schema hash matches (${schemaHash.slice(0, 8)}). Skipping migrations.`)
+          return
+        }
+      } catch (err) {
+        // If table doesn't exist or other error, run migrations as usual
+        console.log(`[migrations] Meta table not found or error reading hash: ${err.message}. Running migrations.`)
+      }
+    }
+
     let r = await this.db.prepare('PRAGMA table_list').run()
     // console.log(r)
     let tables = r.results
@@ -36,7 +57,43 @@ export class ClassMigrations {
         await this.checkForChanges(tableName, clz)
       }
     }
+
+    if (schemaHash) {
+      try {
+        await this.db.prepare(`CREATE TABLE IF NOT EXISTS _migration_meta (key TEXT PRIMARY KEY, value TEXT)`).run()
+        await this.db.prepare(`INSERT OR REPLACE INTO _migration_meta (key, value) VALUES ('schema_hash', ?)`).bind(schemaHash).run()
+        console.log(`[migrations] Schema hash saved: ${schemaHash.slice(0, 8)}`)
+      } catch (saveErr) {
+        console.error(`[migrations] Failed to save schema hash: ${saveErr.message}`)
+      }
+    }
+
     console.log('migrations complete')
+  }
+
+  async computeSchemaHash() {
+    const schemaStrings = this.classes.map((clz) => {
+      const props = clz.properties
+        ? JSON.stringify(clz.properties, (key, value) => {
+            if (typeof value === 'function') {
+              return value.name || value.toString()
+            }
+            return value
+          })
+        : ''
+      const indexes = clz.indexes ? JSON.stringify(clz.indexes) : ''
+      return `${clz.table || clz.name}:${props}:${indexes}`
+    })
+
+    const combinedSchema = schemaStrings.join('\n')
+
+    // Web Crypto API is globally available in Node.js v15+ and Cloudflare Workers
+    const cryptoObj = typeof crypto !== 'undefined' ? crypto : globalThis.crypto
+    const msgBuffer = new TextEncoder().encode(combinedSchema)
+    const hashBuffer = await cryptoObj.subtle.digest('SHA-256', msgBuffer)
+    const hashArray = Array.from(new Uint8Array(hashBuffer))
+    const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
+    return hashHex
   }
 
   async createTable(tableName, clz) {
