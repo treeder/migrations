@@ -72,16 +72,56 @@ export class ClassMigrations {
   }
 
   async computeSchemaHash() {
-    const schemaStrings = this.classes.map((clz) => {
+    // 1. Sort classes by their table name or class name to ensure class registration order doesn't affect the hash
+    const sortedClasses = [...this.classes].sort((a, b) => {
+      const nameA = a.table || a.name || ''
+      const nameB = b.table || b.name || ''
+      return nameA.localeCompare(nameB)
+    })
+
+    const schemaStrings = sortedClasses.map((clz) => {
+      // 2. Sort keys of the properties object to ensure property definition order doesn't affect the hash
       const props = clz.properties
-        ? JSON.stringify(clz.properties, (key, value) => {
-            if (typeof value === 'function') {
-              return value.name || value.toString()
+        ? JSON.stringify(
+            Object.keys(clz.properties)
+              .sort()
+              .reduce((acc, key) => {
+                acc[key] = clz.properties[key]
+                return acc
+              }, {}),
+            (key, value) => {
+              if (typeof value === 'function') {
+                return value.name || value.toString()
+              }
+              return value
             }
-            return value
-          })
+          )
         : ''
-      const indexes = clz.indexes ? JSON.stringify(clz.indexes) : ''
+
+      // 3. Sort index configurations to ensure index declaration order doesn't affect the hash
+      const indexes = clz.indexes
+        ? JSON.stringify(
+            clz.indexes
+              .map((idx) => {
+                if (Array.isArray(idx)) {
+                  return idx
+                } else if (idx && typeof idx === 'object') {
+                  // Sort keys of index option objects (e.g. { columns: [...], unique: true })
+                  return Object.keys(idx)
+                    .sort()
+                    .reduce((acc, k) => {
+                      acc[k] = idx[k]
+                      return acc
+                    }, {})
+                }
+                return idx
+              })
+              .map((idx) => JSON.stringify(idx))
+              .sort()
+              .map((str) => JSON.parse(str))
+          )
+        : ''
+
       return `${clz.table || clz.name}:${props}:${indexes}`
     })
 
