@@ -22,6 +22,27 @@ export class ClassMigrations {
 
   async run2() {
     console.log('Running migrations...')
+
+    let schemaHash
+    try {
+      schemaHash = await this.computeSchemaHash()
+    } catch (hashErr) {
+      console.error(`[migrations] Failed to compute schema hash: ${hashErr.message}`)
+    }
+
+    if (schemaHash) {
+      try {
+        const storedHash = await this.db.prepare(`SELECT value FROM _migration_meta WHERE key = 'schema_hash'`).first('value')
+        if (storedHash === schemaHash) {
+          console.log(`[migrations] Schema hash matches (${schemaHash.slice(0, 8)}). Skipping migrations.`)
+          return
+        }
+      } catch (err) {
+        // If table doesn't exist or other error, run migrations as usual
+        console.log(`[migrations] Meta table not found or error reading hash: ${err.message}. Running migrations.`)
+      }
+    }
+
     let r = await this.db.prepare('PRAGMA table_list').run()
     // console.log(r)
     let tables = r.results
@@ -36,7 +57,83 @@ export class ClassMigrations {
         await this.checkForChanges(tableName, clz)
       }
     }
+
+    if (schemaHash) {
+      try {
+        await this.db.prepare(`CREATE TABLE IF NOT EXISTS _migration_meta (key TEXT PRIMARY KEY, value TEXT)`).run()
+        await this.db.prepare(`INSERT OR REPLACE INTO _migration_meta (key, value) VALUES ('schema_hash', ?)`).bind(schemaHash).run()
+        console.log(`[migrations] Schema hash saved: ${schemaHash.slice(0, 8)}`)
+      } catch (saveErr) {
+        console.error(`[migrations] Failed to save schema hash: ${saveErr.message}`)
+      }
+    }
+
     console.log('migrations complete')
+  }
+
+  async computeSchemaHash() {
+    // 1. Sort classes by their table name or class name to ensure class registration order doesn't affect the hash
+    const sortedClasses = [...this.classes].sort((a, b) => {
+      const nameA = a.table || a.name || ''
+      const nameB = b.table || b.name || ''
+      return nameA.localeCompare(nameB)
+    })
+
+    const schemaStrings = sortedClasses.map((clz) => {
+      // 2. Sort keys of the properties object to ensure property definition order doesn't affect the hash
+      const props = clz.properties
+        ? JSON.stringify(
+            Object.keys(clz.properties)
+              .sort()
+              .reduce((acc, key) => {
+                acc[key] = clz.properties[key]
+                return acc
+              }, {}),
+            (key, value) => {
+              if (typeof value === 'function') {
+                return value.name || value.toString()
+              }
+              return value
+            }
+          )
+        : ''
+
+      // 3. Sort index configurations to ensure index declaration order doesn't affect the hash
+      const indexes = clz.indexes
+        ? JSON.stringify(
+            clz.indexes
+              .map((idx) => {
+                if (Array.isArray(idx)) {
+                  return idx
+                } else if (idx && typeof idx === 'object') {
+                  // Sort keys of index option objects (e.g. { columns: [...], unique: true })
+                  return Object.keys(idx)
+                    .sort()
+                    .reduce((acc, k) => {
+                      acc[k] = idx[k]
+                      return acc
+                    }, {})
+                }
+                return idx
+              })
+              .map((idx) => JSON.stringify(idx))
+              .sort()
+              .map((str) => JSON.parse(str))
+          )
+        : ''
+
+      return `${clz.table || clz.name}:${props}:${indexes}`
+    })
+
+    const combinedSchema = schemaStrings.join('\n')
+
+    // Web Crypto API is globally available in Node.js v15+ and Cloudflare Workers
+    const cryptoObj = typeof crypto !== 'undefined' ? crypto : globalThis.crypto
+    const msgBuffer = new TextEncoder().encode(combinedSchema)
+    const hashBuffer = await cryptoObj.subtle.digest('SHA-256', msgBuffer)
+    const hashArray = Array.from(new Uint8Array(hashBuffer))
+    const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
+    return hashHex
   }
 
   async createTable(tableName, clz) {
@@ -100,7 +197,8 @@ export class ClassMigrations {
     }
     if (!columns || columns.length === 0) return
 
-    let indexName = `${tableName}_${columns.join('_')}_idx`
+    let cleanCols = columns.map(col => col.trim().replace(/\s+/g, '_'))
+    let indexName = `${tableName}_${cleanCols.join('_')}_idx`
     let stmt = `PRAGMA index_list("${tableName}")`
     let idx = await this.db.prepare(stmt).run()
     let existingIndex = idx.results.find((i) => i.name === indexName)
@@ -117,7 +215,15 @@ export class ClassMigrations {
     if (prop.index) {
       // check if there's an index
       // console.log('check indexes')
-      let indexName = `${tableName}_${propName}_idx`
+      let sort = ''
+      if (typeof prop.index === 'object' && prop.index.sort) {
+        sort = prop.index.sort.toUpperCase()
+      } else if (typeof prop.index === 'string' && ['asc', 'desc'].includes(prop.index.toLowerCase())) {
+        sort = prop.index.toUpperCase()
+      }
+
+      let indexSuffix = sort ? `_${sort}` : ''
+      let indexName = `${tableName}_${propName}${indexSuffix}_idx`
       let stmt = `PRAGMA index_list("${tableName}")`
       // console.log(stmt)
       let idx = await this.db.prepare(stmt).run()
@@ -127,7 +233,8 @@ export class ClassMigrations {
         // console.log('INDEX EXISTS:', existingIndex)
         return
       }
-      stmt = `CREATE${prop.index.unique ? ' UNIQUE' : ''} INDEX IF NOT EXISTS ${indexName} ON ${tableName} (${propName})`
+      let columnWithSort = sort ? `${propName} ${sort}` : propName
+      stmt = `CREATE${prop.index.unique ? ' UNIQUE' : ''} INDEX IF NOT EXISTS ${indexName} ON ${tableName} (${columnWithSort})`
       console.log("index does not exist, creating it", stmt)
       let dr = await this.db.prepare(stmt).run()
       console.log('INDEX CREATED', dr)
