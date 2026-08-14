@@ -5,11 +5,10 @@ import { init, once } from './once.js'
 export default {
   async fetch(request, env, ctx) {
     try {
-
       let tableName = toTableName(Product.name)
       let { searchParams } = new URL(request.url)
       if (searchParams.get('clear')) {
-        console.log("clear")
+        console.log('clear')
         await env.D1.prepare(`DROP TABLE IF EXISTS ${tableName}`).run()
         await env.D1.prepare(`DROP TABLE IF EXISTS _migration_meta`).run()
         return Response.json({ message: 'Table dropped' })
@@ -19,6 +18,9 @@ export default {
       }
       if (searchParams.get('addCompositeIndex')) {
         Product.indexes.push(['categoryId', 'value'])
+      }
+      if (searchParams.get('addJsonIndex')) {
+        Product.properties.data.tag = { type: String, index: true }
       }
       await init({ env })
 
@@ -34,6 +36,5 @@ export default {
       console.error(err)
       throw err
     }
-
   },
 }

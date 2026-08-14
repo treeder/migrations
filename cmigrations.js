@@ -2,7 +2,6 @@
  * The object oriented version
  */
 export class ClassMigrations {
-
   constructor(db, classes = []) {
     this.db = db
     this.classes = classes
@@ -32,7 +31,9 @@ export class ClassMigrations {
 
     if (schemaHash) {
       try {
-        const storedHash = await this.db.prepare(`SELECT value FROM _migration_meta WHERE key = 'schema_hash'`).first('value')
+        const storedHash = await this.db
+          .prepare(`SELECT value FROM _migration_meta WHERE key = 'schema_hash'`)
+          .first('value')
         if (storedHash === schemaHash) {
           console.log(`[migrations] Schema hash matches (${schemaHash.slice(0, 8)}). Skipping migrations.`)
           return
@@ -61,7 +62,10 @@ export class ClassMigrations {
     if (schemaHash) {
       try {
         await this.db.prepare(`CREATE TABLE IF NOT EXISTS _migration_meta (key TEXT PRIMARY KEY, value TEXT)`).run()
-        await this.db.prepare(`INSERT OR REPLACE INTO _migration_meta (key, value) VALUES ('schema_hash', ?)`).bind(schemaHash).run()
+        await this.db
+          .prepare(`INSERT OR REPLACE INTO _migration_meta (key, value) VALUES ('schema_hash', ?)`)
+          .bind(schemaHash)
+          .run()
         console.log(`[migrations] Schema hash saved: ${schemaHash.slice(0, 8)}`)
       } catch (saveErr) {
         console.error(`[migrations] Failed to save schema hash: ${saveErr.message}`)
@@ -82,20 +86,12 @@ export class ClassMigrations {
     const schemaStrings = sortedClasses.map((clz) => {
       // 2. Sort keys of the properties object to ensure property definition order doesn't affect the hash
       const props = clz.properties
-        ? JSON.stringify(
-            Object.keys(clz.properties)
-              .sort()
-              .reduce((acc, key) => {
-                acc[key] = clz.properties[key]
-                return acc
-              }, {}),
-            (key, value) => {
-              if (typeof value === 'function') {
-                return value.name || value.toString()
-              }
-              return value
+        ? JSON.stringify(sortKeys(clz.properties), (key, value) => {
+            if (typeof value === 'function') {
+              return value.name || value.toString()
             }
-          )
+            return value
+          })
         : ''
 
       // 3. Sort index configurations to ensure index declaration order doesn't affect the hash
@@ -178,11 +174,56 @@ export class ClassMigrations {
       if (prop.index) {
         await this.checkForIndex(tableName, propName, prop)
       }
+      await this.checkForSubFieldIndexes(tableName, propName, prop)
     }
     if (clz.indexes) {
       for (const indexDef of clz.indexes) {
         await this.checkCompositeIndex(tableName, indexDef)
       }
+    }
+  }
+
+  async checkForSubFieldIndexes(tableName, colName, prop, path = []) {
+    if (!prop || typeof prop !== 'object') return
+    const reservedKeys = ['type', 'primaryKey', 'index', 'parse', 'default']
+    for (const key in prop) {
+      if (reservedKeys.includes(key)) continue
+      const subProp = prop[key]
+      if (!subProp || typeof subProp !== 'object') continue
+
+      const currentPath = [...path, key]
+      if (subProp.index) {
+        await this.checkForJsonIndex(tableName, colName, currentPath, subProp)
+      }
+      await this.checkForSubFieldIndexes(tableName, colName, subProp, currentPath)
+    }
+  }
+
+  async checkForJsonIndex(tableName, colName, path, prop) {
+    if (prop.index) {
+      let sort = ''
+      if (typeof prop.index === 'object' && prop.index.sort) {
+        sort = prop.index.sort.toUpperCase()
+      } else if (typeof prop.index === 'string' && ['asc', 'desc'].includes(prop.index.toLowerCase())) {
+        sort = prop.index.toUpperCase()
+      }
+
+      let jsonPath = path.join('.')
+      let pathSuffix = path.join('_')
+      let indexSuffix = sort ? `_${sort}` : ''
+      let indexName = `${tableName}_${colName}_${pathSuffix}${indexSuffix}_idx`
+      let stmt = `PRAGMA index_list("${tableName}")`
+      let idx = await this.db.prepare(stmt).run()
+      let existingIndex = idx.results.find((i) => i.name === indexName)
+      if (existingIndex) {
+        return
+      }
+      let colExpr = `json_extract(${colName}, '$.${jsonPath}')`
+      if (sort) colExpr += ` ${sort}`
+      stmt = `CREATE${prop.index.unique ? ' UNIQUE' : ''} INDEX IF NOT EXISTS ${indexName} ON ${tableName} (${colExpr})`
+      console.log('json index does not exist, creating it', stmt)
+      let dr = await this.db.prepare(stmt).run()
+      console.log('JSON INDEX CREATED', dr)
     }
   }
 
@@ -197,7 +238,7 @@ export class ClassMigrations {
     }
     if (!columns || columns.length === 0) return
 
-    let cleanCols = columns.map(col => col.trim().replace(/\s+/g, '_'))
+    let cleanCols = columns.map((col) => col.trim().replace(/[^\w]+/g, '_'))
     let indexName = `${tableName}_${cleanCols.join('_')}_idx`
     let stmt = `PRAGMA index_list("${tableName}")`
     let idx = await this.db.prepare(stmt).run()
@@ -205,8 +246,21 @@ export class ClassMigrations {
     if (existingIndex) {
       return
     }
-    stmt = `CREATE${unique ? ' UNIQUE' : ''} INDEX IF NOT EXISTS ${indexName} ON ${tableName} (${columns.join(', ')})`
-    console.log("composite index does not exist, creating it", stmt)
+    let sqlCols = columns.map((col) => {
+      col = col.trim()
+      let parts = col.split(/\s+/)
+      let field = parts[0]
+      let sort = parts.slice(1).join(' ')
+      if (field.includes('.') && !field.includes('(')) {
+        let dotParts = field.split('.')
+        let root = dotParts[0]
+        let path = dotParts.slice(1).join('.')
+        field = `json_extract(${root}, '$.${path}')`
+      }
+      return sort ? `${field} ${sort}` : field
+    })
+    stmt = `CREATE${unique ? ' UNIQUE' : ''} INDEX IF NOT EXISTS ${indexName} ON ${tableName} (${sqlCols.join(', ')})`
+    console.log('composite index does not exist, creating it', stmt)
     let dr = await this.db.prepare(stmt).run()
     console.log('COMPOSITE INDEX CREATED', dr)
   }
@@ -235,7 +289,7 @@ export class ClassMigrations {
       }
       let columnWithSort = sort ? `${propName} ${sort}` : propName
       stmt = `CREATE${prop.index.unique ? ' UNIQUE' : ''} INDEX IF NOT EXISTS ${indexName} ON ${tableName} (${columnWithSort})`
-      console.log("index does not exist, creating it", stmt)
+      console.log('index does not exist, creating it', stmt)
       let dr = await this.db.prepare(stmt).run()
       console.log('INDEX CREATED', dr)
     } else {
@@ -278,4 +332,16 @@ function toCamelCase(str) {
 
 function pluralize(str) {
   return str + 's'
+}
+
+function sortKeys(obj) {
+  if (obj === null || typeof obj !== 'object' || Array.isArray(obj)) {
+    return obj
+  }
+  return Object.keys(obj)
+    .sort()
+    .reduce((acc, key) => {
+      acc[key] = sortKeys(obj[key])
+      return acc
+    }, {})
 }

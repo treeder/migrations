@@ -32,12 +32,20 @@ export class Product {
     },
     data: {
       type: Object,
+      brand: {
+        type: String,
+        index: true,
+      },
+      rating: {
+        type: Number,
+        index: 'DESC',
+      },
     },
   }
 
   static indexes = [
     ['categoryId', 'name'],
     { columns: ['name', 'value'], unique: true },
-    ['quantity DESC', 'updatedAt ASC']
+    ['quantity DESC', 'updatedAt ASC'],
   ]
 }
