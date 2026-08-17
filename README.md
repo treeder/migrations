@@ -86,6 +86,40 @@ To make it a unique index:
 }
 ```
 
+#### JSON Sub-Field Indexes
+
+You can add indexes to sub-fields inside `Object` (JSON) properties. This creates an SQLite expression index using `json_extract()`.
+
+```js
+export class Product {
+  static properties = {
+    id: { type: String, primaryKey: true },
+    data: {
+      type: Object,
+      brand: {
+        type: String,
+        index: true, // creates index on json_extract(data, '$.brand')
+      },
+      rating: {
+        type: Number,
+        index: 'DESC', // creates sorted index on json_extract(data, '$.rating') DESC
+      },
+      sku: {
+        type: String,
+        index: { unique: true }, // creates UNIQUE index on json_extract(data, '$.sku')
+      },
+      specs: {
+        type: Object,
+        color: {
+          type: String,
+          index: true, // creates index on json_extract(data, '$.specs.color')
+        },
+      },
+    },
+  }
+}
+```
+
 #### Composite / Compound Indexes
 
 You can also define composite indexes (or multi-column indexes) on your model by adding an `indexes` static property array. This is useful when you want to create an index across multiple fields.
@@ -102,7 +136,9 @@ export class Product {
     // Array syntax for standard composite index
     ['tenantId', 'categoryId'],
     // Object syntax if you need it to be unique
-    { columns: ['tenantId', 'name'], unique: true }
+    { columns: ['tenantId', 'name'], unique: true },
+    // Composite index combining JSON sub-field and regular column
+    ['data.brand', 'name'],
   ]
 }
 ```
