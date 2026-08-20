@@ -5,7 +5,8 @@
   "main": "migrations.js",
   "scripts": {
     "start": "cd example && npx wrangler dev ./index.js",
-    "test": "node test/test.js",
+    "test": "node test/unit_test.js && node test/test.js",
+    "test:unit": "node test/unit_test.js",
     "ci": "start-server-and-test start 8787 test"
   },
   "devDependencies": {
