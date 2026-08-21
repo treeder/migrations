@@ -202,8 +202,12 @@ export class ClassMigrations {
   async checkForJsonIndex(tableName, colName, path, prop) {
     if (prop.index) {
       let sort = ''
-      if (typeof prop.index === 'object' && prop.index.sort) {
-        sort = prop.index.sort.toUpperCase()
+      let where = ''
+      let customName = null
+      if (typeof prop.index === 'object') {
+        if (prop.index.sort) sort = prop.index.sort.toUpperCase()
+        if (prop.index.where) where = prop.index.where
+        if (prop.index.name) customName = prop.index.name
       } else if (typeof prop.index === 'string' && ['asc', 'desc'].includes(prop.index.toLowerCase())) {
         sort = prop.index.toUpperCase()
       }
@@ -211,7 +215,7 @@ export class ClassMigrations {
       let jsonPath = path.join('.')
       let pathSuffix = path.join('_')
       let indexSuffix = sort ? `_${sort}` : ''
-      let indexName = `${tableName}_${colName}_${pathSuffix}${indexSuffix}_idx`
+      let indexName = customName || `${tableName}_${colName}_${pathSuffix}${indexSuffix}_idx`
       let stmt = `PRAGMA index_list("${tableName}")`
       let idx = await this.db.prepare(stmt).run()
       let existingIndex = idx.results.find((i) => i.name === indexName)
@@ -220,7 +224,8 @@ export class ClassMigrations {
       }
       let colExpr = `json_extract(${colName}, '$.${jsonPath}')`
       if (sort) colExpr += ` ${sort}`
-      stmt = `CREATE${prop.index.unique ? ' UNIQUE' : ''} INDEX IF NOT EXISTS ${indexName} ON ${tableName} (${colExpr})`
+      let whereClause = where ? ` WHERE ${where}` : ''
+      stmt = `CREATE${prop.index.unique ? ' UNIQUE' : ''} INDEX IF NOT EXISTS ${indexName} ON ${tableName} (${colExpr})${whereClause}`
       console.log('json index does not exist, creating it', stmt)
       let dr = await this.db.prepare(stmt).run()
       console.log('JSON INDEX CREATED', dr)
@@ -230,16 +235,20 @@ export class ClassMigrations {
   async checkCompositeIndex(tableName, indexDef) {
     let columns = []
     let unique = false
+    let where = ''
+    let customName = null
     if (Array.isArray(indexDef)) {
       columns = indexDef
     } else {
       columns = indexDef.columns
       unique = indexDef.unique
+      where = indexDef.where
+      customName = indexDef.name
     }
     if (!columns || columns.length === 0) return
 
     let cleanCols = columns.map((col) => col.trim().replace(/[^\w]+/g, '_'))
-    let indexName = `${tableName}_${cleanCols.join('_')}_idx`
+    let indexName = customName || `${tableName}_${cleanCols.join('_')}_idx`
     let stmt = `PRAGMA index_list("${tableName}")`
     let idx = await this.db.prepare(stmt).run()
     let existingIndex = idx.results.find((i) => i.name === indexName)
@@ -259,7 +268,8 @@ export class ClassMigrations {
       }
       return sort ? `${field} ${sort}` : field
     })
-    stmt = `CREATE${unique ? ' UNIQUE' : ''} INDEX IF NOT EXISTS ${indexName} ON ${tableName} (${sqlCols.join(', ')})`
+    let whereClause = where ? ` WHERE ${where}` : ''
+    stmt = `CREATE${unique ? ' UNIQUE' : ''} INDEX IF NOT EXISTS ${indexName} ON ${tableName} (${sqlCols.join(', ')})${whereClause}`
     console.log('composite index does not exist, creating it', stmt)
     let dr = await this.db.prepare(stmt).run()
     console.log('COMPOSITE INDEX CREATED', dr)
@@ -270,14 +280,18 @@ export class ClassMigrations {
       // check if there's an index
       // console.log('check indexes')
       let sort = ''
-      if (typeof prop.index === 'object' && prop.index.sort) {
-        sort = prop.index.sort.toUpperCase()
+      let where = ''
+      let customName = null
+      if (typeof prop.index === 'object') {
+        if (prop.index.sort) sort = prop.index.sort.toUpperCase()
+        if (prop.index.where) where = prop.index.where
+        if (prop.index.name) customName = prop.index.name
       } else if (typeof prop.index === 'string' && ['asc', 'desc'].includes(prop.index.toLowerCase())) {
         sort = prop.index.toUpperCase()
       }
 
       let indexSuffix = sort ? `_${sort}` : ''
-      let indexName = `${tableName}_${propName}${indexSuffix}_idx`
+      let indexName = customName || `${tableName}_${propName}${indexSuffix}_idx`
       let stmt = `PRAGMA index_list("${tableName}")`
       // console.log(stmt)
       let idx = await this.db.prepare(stmt).run()
@@ -288,7 +302,8 @@ export class ClassMigrations {
         return
       }
       let columnWithSort = sort ? `${propName} ${sort}` : propName
-      stmt = `CREATE${prop.index.unique ? ' UNIQUE' : ''} INDEX IF NOT EXISTS ${indexName} ON ${tableName} (${columnWithSort})`
+      let whereClause = where ? ` WHERE ${where}` : ''
+      stmt = `CREATE${prop.index.unique ? ' UNIQUE' : ''} INDEX IF NOT EXISTS ${indexName} ON ${tableName} (${columnWithSort})${whereClause}`
       console.log('index does not exist, creating it', stmt)
       let dr = await this.db.prepare(stmt).run()
       console.log('INDEX CREATED', dr)

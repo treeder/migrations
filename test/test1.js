@@ -80,4 +80,52 @@ export async function test1(c) {
   console.log('r8:', r)
   assert(r.indexes.length == 10) // autoindex, 4 compound, 2 regular/sorted, 3 JSON
   assert(r.indexes.some((i) => i.name === 'products_data_tag_idx'))
+
+  // Single partial index on existing tables
+  r = await c.api.fetch(`/?addPartialIndex=true`, {
+    method: 'POST',
+    body: {},
+  })
+  console.log('r9:', r)
+  await new Promise((resolve) => setTimeout(resolve, 10000))
+
+  r = await c.api.fetch(`/`, {
+    method: 'POST',
+    body: {},
+  })
+  console.log('r10:', r)
+  assert(r.indexes.length == 11)
+  assert(r.indexes.some((i) => i.name === 'products_description_idx'))
+
+  // Composite partial index with custom name
+  r = await c.api.fetch(`/?addPartialCompositeIndex=true`, {
+    method: 'POST',
+    body: {},
+  })
+  console.log('r11:', r)
+  await new Promise((resolve) => setTimeout(resolve, 10000))
+
+  r = await c.api.fetch(`/`, {
+    method: 'POST',
+    body: {},
+  })
+  console.log('r12:', r)
+  assert(r.indexes.length == 12)
+  assert(r.indexes.some((i) => i.name === 'products_active_category_price_idx'))
+
+  // JSON sub-field partial index
+  r = await c.api.fetch(`/?addPartialJsonIndex=true`, {
+    method: 'POST',
+    body: {},
+  })
+  console.log('r13:', r)
+  await new Promise((resolve) => setTimeout(resolve, 10000))
+
+  r = await c.api.fetch(`/`, {
+    method: 'POST',
+    body: {},
+  })
+  console.log('r14:', r)
+  assert(r.indexes.length == 13)
+  assert(r.indexes.some((i) => i.name === 'products_data_status_idx'))
 }

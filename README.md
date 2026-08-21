@@ -143,6 +143,45 @@ export class Product {
 }
 ```
 
+#### Partial Indexes
+
+You can create partial indexes by specifying a `where` predicate clause. This is supported on single property indexes, JSON sub-field indexes, and composite indexes. You can also optionally provide a custom `name`.
+
+```js
+export class Product {
+  static properties = {
+    id: { type: String, primaryKey: true },
+    email: {
+      type: String,
+      // Unique index on active (non-deleted) emails only
+      index: { unique: true, where: 'deletedAt IS NULL' },
+    },
+    status: {
+      type: String,
+      // Partial index with custom name
+      index: { where: 'status != "archived"', name: 'idx_active_status' },
+    },
+    data: {
+      type: Object,
+      inventory: {
+        type: Number,
+        // Partial index on JSON sub-field
+        index: { where: "json_extract(data, '$.inventory') > 0" },
+      },
+    },
+    deletedAt: { type: Date },
+  }
+
+  static indexes = [
+    // Composite partial index
+    {
+      columns: ['tenantId', 'name'],
+      where: 'deletedAt IS NULL',
+    },
+  ]
+}
+```
+
 ## Using raw statements
 
 ```js

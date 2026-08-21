@@ -22,6 +22,22 @@ export default {
       if (searchParams.get('addJsonIndex')) {
         Product.properties.data.tag = { type: String, index: true }
       }
+      if (searchParams.get('addPartialIndex')) {
+        Product.properties.description.index = { where: 'description IS NOT NULL' }
+      }
+      if (searchParams.get('addPartialCompositeIndex')) {
+        Product.indexes.push({
+          columns: ['categoryId', 'price'],
+          where: 'price > 0',
+          name: 'products_active_category_price_idx',
+        })
+      }
+      if (searchParams.get('addPartialJsonIndex')) {
+        Product.properties.data.status = {
+          type: String,
+          index: { where: "json_extract(data, '$.status') != 'archived'" },
+        }
+      }
       await init({ env })
 
       let r = await env.D1.prepare('PRAGMA table_list').run()
