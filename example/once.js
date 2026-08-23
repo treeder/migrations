@@ -1,4 +1,4 @@
-import { ClassMigrations } from '../cmigrations.js'
+import { Migrations } from '../migrations.js'
 import { Product } from './models/product.js'
 
 let finished
@@ -11,6 +11,6 @@ export async function once(func, c) {
 }
 
 export async function init(c) {
-  let migrations = new ClassMigrations(c.env.D1, [Product])
+  let migrations = new Migrations(c.env.D1, [Product])
   await migrations.run()
 }

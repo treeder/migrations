@@ -1,10 +1,12 @@
 # migrations
 
-Simple SQLite migration library.
+Simple SQLite migration library with declarative schemas and arbitrary data migrations.
 
 This works with Cloudflare D1 out of the box.
 
-This will perform the migration and since it's in git, it will also keep a record of all db changes.
+- **Fast startup**: Uses an in-memory SHA-256 schema hash to skip all inspection queries on cold starts.
+- **Declarative schemas**: Define models as classes with properties and indexes; tables and columns are automatically created and updated.
+- **Arbitrary migrations**: Run custom SQL queries, data backfills, and async JS functions that are guaranteed to run only once using content hashing.
 
 ## Usage
 
@@ -12,14 +14,14 @@ This will perform the migration and since it's in git, it will also keep a recor
 npm install treeder/migrations
 ```
 
-## Using classes
+## Using Models (Declarative Schemas)
 
 Define a class with properties. Properties are just like Lit component properties so they have a similar feel.
 
 ```js
-import { ClassMigrations } from 'migrations'
+import { Migrations } from 'migrations'
 
-// First define your models as classes:
+// Define your models as classes:
 export class Product {
   static properties = {
     id: {
@@ -45,24 +47,15 @@ export class Product {
 Then run the migrations:
 
 ```js
-// Then use this to create your migrations:
-let migrations = new ClassMigrations(env.D1, [Product])
+let migrations = new Migrations(env.D1, [Product])
 await migrations.run()
 ```
 
-If you add new properties, the database will automatically update on the next time you run it.
-
-### Ensure you only run it once on startup
-
-Use this once function:
-
-```
-
-```
+If you add new properties or indexes to your classes, the database will automatically update the next time you run it.
 
 ### Indexes
 
-Add an index property to the field.
+Add an `index` property to any field:
 
 ```js
 {
@@ -122,7 +115,7 @@ export class Product {
 
 #### Composite / Compound Indexes
 
-You can also define composite indexes (or multi-column indexes) on your model by adding an `indexes` static property array. This is useful when you want to create an index across multiple fields.
+Define composite indexes by adding an `indexes` static property array to your model:
 
 ```js
 export class Product {
@@ -145,7 +138,7 @@ export class Product {
 
 #### Partial Indexes
 
-You can create partial indexes by specifying a `where` predicate clause. This is supported on single property indexes, JSON sub-field indexes, and composite indexes. You can also optionally provide a custom `name`.
+Create partial indexes by specifying a `where` predicate clause. This is supported on single property indexes, JSON sub-field indexes, and composite indexes:
 
 ```js
 export class Product {
@@ -182,17 +175,68 @@ export class Product {
 }
 ```
 
-## Using raw statements
+---
+
+## Arbitrary Migrations & Data Updates
+
+You can execute arbitrary database queries (such as `UPDATE`, `INSERT`, data backfills, or custom JavaScript logic) alongside your models. Each arbitrary migration is tracked by its content hash in SQLite (`_migrations` table) to ensure it **only runs once**.
+
+### 1. Co-located on Model Classes
+
+Add a `static migrations` array to your model class:
+
+```js
+export class Product {
+  static properties = {
+    id: { type: String, primaryKey: true },
+    status: { type: String },
+  }
+
+  static migrations = [
+    // SQL string migration (content hash tracked automatically)
+    `UPDATE products SET status = 'active' WHERE status IS NULL`,
+
+    // Object with custom identifier and SQL or async JS function
+    {
+      id: 'backfill-product-status',
+      up: `UPDATE products SET status = 'pending' WHERE status = 'draft'`,
+    },
+  ]
+}
+```
+
+### 2. Standalone Arbitrary Migrations
+
+You can also pass arbitrary migrations directly to `Migrations`:
 
 ```js
 import { Migrations } from 'migrations'
+import { Product, User } from './models.js'
 
-let migrations = new Migrations(db)
-// add all your migrations, one statement per add()
-// WARNING: DO NOT REMOVE A MIGRATION, EVER! JUST LEAVE THEM AND ADD TO THE LIST
-migrations.add(`CREATE TABLE IF NOT EXISTS mytable (id string PRIMARY KEY, createdAt text)`)
-migrations.add(`CREATE TABLE IF NOT EXISTS mytable2 (id string PRIMARY KEY, createdAt text)`)
+let migrations = new Migrations(env.D1, [
+  Product,
+  User,
 
-// Then run it. You can run this any number of times, it will only run each migration once.
+  // Raw SQL string
+  `UPDATE users SET role = 'member' WHERE role IS NULL`,
+
+  // Migration object with async JS function
+  {
+    id: 'seed-admin-user',
+    up: async (db) => {
+      await db.prepare(`INSERT OR IGNORE INTO users (id, role) VALUES ('admin', 'superadmin')`).run()
+    }
+  }
+])
+
+await migrations.run()
+```
+
+Or add them dynamically with `migrations.add(...)`:
+
+```js
+let migrations = new Migrations(env.D1)
+migrations.add(Product)
+migrations.add(`UPDATE settings SET initialized = 1 WHERE initialized IS NULL`)
 await migrations.run()
 ```
