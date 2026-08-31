@@ -444,10 +444,7 @@ function sortKeys(obj) {
 function isModelClass(item) {
   if (!item) return false
   if (typeof item === 'function') {
-    if (item.properties || item.indexes || item.table) return true
-    if (item.prototype && item.prototype.constructor === item && item.name && /^[A-Z]/.test(item.name)) {
-      return true
-    }
+    return Boolean(item.properties || item.indexes || item.table)
   }
   return false
 }

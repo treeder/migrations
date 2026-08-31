@@ -205,8 +205,13 @@ async function runUnitTests() {
       ]
     }
 
+    async function BackfillUsers(db) {
+      await db.prepare(`UPDATE users SET role = 'backfilled' WHERE role = 'member'`).run()
+    }
+
     const migrations = new Migrations(mockDb, [
       User,
+      BackfillUsers,
       `UPDATE settings SET initialized = 1 WHERE initialized IS NULL`,
       {
         id: 'custom-async-migration',
@@ -229,6 +234,10 @@ async function runUnitTests() {
       'Class static object migration should execute'
     )
     assert(
+      mockDb.executedStatements.some((s) => s.includes("UPDATE users SET role = 'backfilled' WHERE role = 'member'")),
+      'Capitalized named function migration should execute'
+    )
+    assert(
       mockDb.executedStatements.some((s) => s.includes("UPDATE settings SET initialized = 1 WHERE initialized IS NULL")),
       'Top-level SQL migration should execute'
     )
@@ -240,8 +249,9 @@ async function runUnitTests() {
 
     // Verify _migrations table recording
     assert(mockDb.appliedMigrations.has('seed-admin-user'), 'Custom ID migration should be recorded in _migrations')
+    assert(mockDb.appliedMigrations.has('BackfillUsers'), 'Capitalized named function migration should be recorded in _migrations')
     assert(mockDb.appliedMigrations.has('custom-async-migration'), 'Async function migration should be recorded in _migrations')
-    assert(mockDb.appliedMigrations.size >= 4, 'All arbitrary migrations should be tracked in _migrations')
+    assert(mockDb.appliedMigrations.size >= 5, 'All arbitrary migrations should be tracked in _migrations')
   }
 
   // Test 4: Fast-path skip when schemaHash matches
