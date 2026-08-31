@@ -1,4 +1,4 @@
-import { ClassMigrations, toTableName } from '../cmigrations.js'
+import { Migrations, toTableName } from '../migrations.js'
 import { Product } from './models/product.js'
 import { init, once } from './once.js'
 
